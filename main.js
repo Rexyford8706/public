@@ -106,6 +106,15 @@ let lastShot = 0;
 let reloading = false;
 let reloadStart = 0;
 
+// Shooting state for hold-to-fire
+let isShooting = false;
+
+// Axe system
+let axe = null;
+const AXE_DURATION = 1500; // 1.5 seconds
+const AXE_COOLDOWN = 3000; // 3 seconds between uses
+let lastAxeUse = 0;
+
 // Weapon Upgrades
 const weaponUpgrades = {
     damage: 1,
@@ -186,6 +195,11 @@ let waveInProgress = false;
 document.addEventListener('keydown', (e) => {
     player.keys[e.key.toLowerCase()] = true;
     
+    if (e.code === 'Space') {
+        isShooting = true;
+        e.preventDefault();
+    }
+    
     if (e.key.toLowerCase() === 'r' && !reloading && currentMagazine < getMaxMagazine()) {
         startReload();
     }
@@ -197,10 +211,18 @@ document.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'e' && crate && !game.upgradeMenuOpen) {
         openCrate();
     }
+    
+    if (e.key.toLowerCase() === 'f' && !game.upgradeMenuOpen && game.running) {
+        useAxe();
+    }
 });
 
 document.addEventListener('keyup', (e) => {
     player.keys[e.key.toLowerCase()] = false;
+    
+    if (e.code === 'Space') {
+        isShooting = false;
+    }
 });
 
 canvas.addEventListener('mousemove', (e) => {
@@ -212,8 +234,18 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('mousedown', (e) => {
     if (e.button === 0 && !game.upgradeMenuOpen && game.running) {
-        shoot();
+        isShooting = true;
     }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    if (e.button === 0) {
+        isShooting = false;
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    isShooting = false;
 });
 
 document.getElementById('restartBtn').addEventListener('click', restartGame);
@@ -258,6 +290,7 @@ function toggleUpgradeMenu() {
     game.upgradeMenuOpen = !game.upgradeMenuOpen;
     document.getElementById('upgradeMenu').style.display = game.upgradeMenuOpen ? 'block' : 'none';
     if (game.upgradeMenuOpen) {
+        isShooting = false;
         updateUpgradeMenu();
     }
 }
@@ -280,14 +313,114 @@ function finishReload() {
     updateUI();
 }
 
-function shoot() {
+function useAxe() {
+    const now = Date.now();
+    if (now - lastAxeUse < AXE_COOLDOWN) return;
+    
+    lastAxeUse = now;
+    axe = {
+        startTime: now,
+        angle: 0,
+        radius: 60,
+        damage: weapons.pistol.damage / 3 * weaponUpgrades.damage,
+        hitZombies: new Set()
+    };
+}
+
+function updateAxe() {
+    if (!axe) return;
+    
+    const now = Date.now();
+    const elapsed = now - axe.startTime;
+    
+    if (elapsed >= AXE_DURATION) {
+        axe = null;
+        return;
+    }
+    
+    // Spin the axe (one full rotation over 1.5 seconds)
+    axe.angle = (elapsed / AXE_DURATION) * Math.PI * 2;
+    
+    // Calculate axe position
+    const axeX = player.x + Math.cos(axe.angle) * axe.radius;
+    const axeY = player.y + Math.sin(axe.angle) * axe.radius;
+    
+    // Check collisions with zombies
+    zombies.forEach((zombie, index) => {
+        if (axe.hitZombies.has(zombie.id)) return;
+        
+        const dx = zombie.x - axeX;
+        const dy = zombie.y - axeY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < zombie.radius + 20) { // 20 is axe hit radius
+            // Push zombie away
+            const pushAngle = Math.atan2(dy, dx);
+            const pushForce = 100;
+            zombie.x += Math.cos(pushAngle) * pushForce;
+            zombie.y += Math.sin(pushAngle) * pushForce;
+            
+            // Damage zombie
+            damageZombie(zombie, axe.damage, index);
+            
+            // Mark as hit so we don't hit same zombie multiple times per spin
+            axe.hitZombies.add(zombie.id);
+        }
+    });
+}
+
+function drawAxe() {
+    if (!axe) return;
+    
+    const axeX = player.x + Math.cos(axe.angle) * axe.radius;
+    const axeY = player.y + Math.sin(axe.angle) * axe.radius;
+    
+    ctx.save();
+    ctx.translate(axeX, axeY);
+    ctx.rotate(axe.angle + Math.PI / 2);
+    
+    // Axe handle
+    ctx.fillStyle = '#8b4513';
+    ctx.fillRect(-3, -30, 6, 40);
+    
+    // Axe head
+    ctx.fillStyle = '#silver';
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(20, -25);
+    ctx.lineTo(20, -35);
+    ctx.lineTo(0, -40);
+    ctx.fill();
+    
+    // Axe blade edge
+    ctx.fillStyle = '#ccc';
+    ctx.beginPath();
+    ctx.moveTo(20, -35);
+    ctx.lineTo(25, -30);
+    ctx.lineTo(20, -25);
+    ctx.fill();
+    
+    ctx.restore();
+    
+    // Draw connection line (optional - shows it's being swung)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(player.x, player.y);
+    ctx.lineTo(axeX, axeY);
+    ctx.stroke();
+}
+
+function updateShooting() {
+    if (!isShooting || reloading || game.upgradeMenuOpen || !game.running) return;
+    
     const now = Date.now();
     const fireRate = currentWeapon.fireRate * weaponUpgrades.fireRate;
     
-    if (now - lastShot < fireRate || reloading || currentMagazine <= 0) {
-        if (currentMagazine <= 0 && !reloading) {
-            startReload();
-        }
+    if (now - lastShot < fireRate) return;
+    
+    if (currentMagazine <= 0) {
+        startReload();
         return;
     }
     
@@ -297,7 +430,7 @@ function shoot() {
     
     for (let i = 0; i < burstCount; i++) {
         setTimeout(() => {
-            if (currentMagazine > 0) {
+            if (currentMagazine > 0 && isShooting) {
                 createProjectile();
                 currentMagazine--;
                 updateUI();
@@ -368,8 +501,8 @@ function startWave() {
         }, 3000);
         
         // Spawn boss
-        const bossTypes = ['giantTank', 'mutantHorse', 'spitterBoss'];
-        const randomBoss = bossTypes[Math.floor(Math.random() * bossTypes.length)];
+        const bossTypesList = ['giantTank', 'mutantHorse', 'spitterBoss'];
+        const randomBoss = bossTypesList[Math.floor(Math.random() * bossTypesList.length)];
         spawnZombie(randomBoss, true);
         
         // Spawn some normal zombies with boss
@@ -486,6 +619,10 @@ function updateZombies() {
                 zombie.y -= (dy / dist) * zombie.speed * 0.5;
             }
         }
+        
+        // Bounds check
+        zombie.x = Math.max(zombie.radius, Math.min(canvas.width - zombie.radius, zombie.x));
+        zombie.y = Math.max(zombie.radius, Math.min(canvas.height - zombie.radius, zombie.y));
         
         // Attack
         if (dist < zombie.radius + player.radius && zombie.attackCooldown <= 0) {
@@ -890,6 +1027,9 @@ function draw() {
         ctx.restore();
     });
     
+    // Draw Axe (behind player)
+    drawAxe();
+    
     // Draw player
     ctx.save();
     ctx.translate(player.x, player.y);
@@ -905,10 +1045,12 @@ function draw() {
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
     ctx.fill();
     
-    // Gun
-    ctx.rotate(player.angle);
-    ctx.fillStyle = currentWeapon.color;
-    ctx.fillRect(10, -4, 20, 8);
+    // Gun (don't draw if axe is active)
+    if (!axe) {
+        ctx.rotate(player.angle);
+        ctx.fillStyle = currentWeapon.color;
+        ctx.fillRect(10, -4, 20, 8);
+    }
     
     // Reload indicator
     if (reloading) {
@@ -939,6 +1081,7 @@ function updateUI() {
 
 function gameOver() {
     game.running = false;
+    isShooting = false;
     document.getElementById('finalRound').textContent = game.round;
     document.getElementById('finalPoints').textContent = game.points;
     document.getElementById('finalKills').textContent = game.zombiesKilled;
@@ -952,6 +1095,8 @@ function restartGame() {
     game.points = 0;
     game.zombiesKilled = 0;
     game.crateDropped = false;
+    isShooting = false;
+    axe = null;
     
     // Reset player
     player.x = canvas.width / 2;
@@ -992,6 +1137,8 @@ function gameLoop() {
     updateProjectiles();
     updateParticles();
     updateWave();
+    updateShooting(); // Continuous shooting while holding
+    updateAxe();
     
     draw();
     

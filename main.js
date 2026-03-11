@@ -111,7 +111,7 @@ let isShooting = false;
 
 // Axe system
 let axe = null;
-const AXE_DURATION = 1500; // 1.5 seconds
+const AXE_DURATION = 500; // 0.5 seconds (was 1.5)
 const AXE_COOLDOWN = 3000; // 3 seconds between uses
 let lastAxeUse = 0;
 
@@ -212,7 +212,7 @@ document.addEventListener('keydown', (e) => {
         openCrate();
     }
     
-    if (e.key.toLowerCase() === 'f' && !game.upgradeMenuOpen && game.running) {
+    if (e.key.toLowerCase() === 'f' && !game.upgradeMenuOpen && game.running && !axe) {
         useAxe();
     }
 });
@@ -233,7 +233,7 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 0 && !game.upgradeMenuOpen && game.running) {
+    if (e.button === 0 && !game.upgradeMenuOpen && game.running && !axe) {
         isShooting = true;
     }
 });
@@ -321,10 +321,13 @@ function useAxe() {
     axe = {
         startTime: now,
         angle: 0,
-        radius: 60,
+        radius: 35, // Closer to player (was 60)
         damage: weapons.pistol.damage / 3 * weaponUpgrades.damage,
         hitZombies: new Set()
     };
+    
+    // Stop shooting when axe is active
+    isShooting = false;
 }
 
 function updateAxe() {
@@ -338,8 +341,8 @@ function updateAxe() {
         return;
     }
     
-    // Spin the axe (one full rotation over 1.5 seconds)
-    axe.angle = (elapsed / AXE_DURATION) * Math.PI * 2;
+    // Spin the axe faster (2 full rotations in 0.5 seconds)
+    axe.angle = (elapsed / AXE_DURATION) * Math.PI * 4;
     
     // Calculate axe position
     const axeX = player.x + Math.cos(axe.angle) * axe.radius;
@@ -353,7 +356,7 @@ function updateAxe() {
         const dy = zombie.y - axeY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < zombie.radius + 20) { // 20 is axe hit radius
+        if (dist < zombie.radius + 15) { // 15 is axe hit radius
             // Push zombie away
             const pushAngle = Math.atan2(dy, dx);
             const pushForce = 100;
@@ -377,42 +380,45 @@ function drawAxe() {
     
     ctx.save();
     ctx.translate(axeX, axeY);
-    ctx.rotate(axe.angle + Math.PI / 2);
+    ctx.rotate(axe.angle + Math.PI / 4); // Rotate to look like it's being swung
     
-    // Axe handle
+    // Axe handle (shorter)
     ctx.fillStyle = '#8b4513';
-    ctx.fillRect(-3, -30, 6, 40);
+    ctx.fillRect(-2, -15, 4, 25);
     
-    // Axe head
-    ctx.fillStyle = '#silver';
+    // Axe head (proper axe shape)
+    ctx.fillStyle = '#c0c0c0';
     ctx.beginPath();
-    ctx.moveTo(0, -30);
-    ctx.lineTo(20, -25);
-    ctx.lineTo(20, -35);
-    ctx.lineTo(0, -40);
+    // Back of axe head
+    ctx.moveTo(-2, -15);
+    ctx.lineTo(2, -15);
+    // Top edge
+    ctx.lineTo(8, -12);
+    // Blade curve
+    ctx.quadraticCurveTo(12, -8, 10, 0);
+    // Bottom edge
+    ctx.lineTo(2, -5);
+    // Back bottom
+    ctx.lineTo(-2, -5);
+    ctx.closePath();
     ctx.fill();
     
-    // Axe blade edge
-    ctx.fillStyle = '#ccc';
+    // Axe blade edge (sharp part)
+    ctx.fillStyle = '#e0e0e0';
     ctx.beginPath();
-    ctx.moveTo(20, -35);
-    ctx.lineTo(25, -30);
-    ctx.lineTo(20, -25);
+    ctx.moveTo(8, -12);
+    ctx.quadraticCurveTo(12, -8, 10, 0);
+    ctx.lineTo(6, -3);
+    ctx.quadraticCurveTo(8, -8, 6, -10);
+    ctx.closePath();
     ctx.fill();
     
     ctx.restore();
-    
-    // Draw connection line (optional - shows it's being swung)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y);
-    ctx.lineTo(axeX, axeY);
-    ctx.stroke();
 }
 
 function updateShooting() {
-    if (!isShooting || reloading || game.upgradeMenuOpen || !game.running) return;
+    // Can't shoot while axe is spinning
+    if (axe || !isShooting || reloading || game.upgradeMenuOpen || !game.running) return;
     
     const now = Date.now();
     const fireRate = currentWeapon.fireRate * weaponUpgrades.fireRate;
@@ -430,7 +436,7 @@ function updateShooting() {
     
     for (let i = 0; i < burstCount; i++) {
         setTimeout(() => {
-            if (currentMagazine > 0 && isShooting) {
+            if (currentMagazine > 0 && isShooting && !axe) { // Extra check for axe
                 createProjectile();
                 currentMagazine--;
                 updateUI();

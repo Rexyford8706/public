@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crate Survival: Zombie Siege</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.3);
+        }
+        
+        #gameCanvas {
+            border: 2px solid #333;
+            background: #1a1a1a;
+            cursor: crosshair;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        
+        #ui div {
+            margin-bottom: 5px;
+        }
+        
+        .health-bar {
+            width: 200px;
+            height: 20px;
+            background: #330000;
+            border: 2px solid #666;
+            margin-top: 5px;
+            position: relative;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6600);
+            transition: width 0.3s;
+        }
+        
+        #weaponInfo {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 12px;
+        }
+        
+        #upgradeMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid #444;
+            padding: 20px;
+            display: none;
+            color: #fff;
+            min-width: 300px;
+        }
+        
+        #upgradeMenu h2 {
+            color: #ff6600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .upgrade-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #333;
+            border: 2px solid #555;
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .upgrade-btn:hover {
+            background: #444;
+            border-color: #ff6600;
+        }
+        
+        .upgrade-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 3px solid #ff0000;
+            padding: 30px;
+            display: none;
+            color: #fff;
+            text-align: center;
+        }
+        
+        #gameOver h1 {
+            color: #ff0000;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        #restartBtn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #ff6600;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+            margin-top: 20px;
+        }
+        
+        #restartBtn:hover {
+            background: #ff8800;
+        }
+        
+        #crateNotification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffff00;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        #bossWarning {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+            display: none;
+            animation: shake 0.5s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+            25% { transform: translate(-50%, -50%) translateX(-10px); }
+            75% { transform: translate(-50%, -50%) translateX(10px); }
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #666;
+            font-size: 11px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1200" height="800"></canvas>
+        
+        <div id="ui">
+            <div>HEALTH</div>
+            <div class="health-bar">
+                <div class="health-fill" id="healthBar" style="width: 100%"></div>
+            </div>
+            <div>ROUND: <span id="round">1</span></div>
+            <div>POINTS: <span id="points">0</span></div>
+            <div>ZOMBIES: <span id="zombieCount">0</span></div>
+            <div id="nextCrate">Next crate in: <span id="crateTimer">5</span> rounds</div>
+        </div>
+        
+        <div id="weaponInfo">
+            <div id="currentWeapon">Weapon: Starter Pistol</div>
+            <div id="ammo">Ammo: 19/19</div>
+            <div id="reloadStatus"></div>
+        </div>
+        
+        <div id="crateNotification">📦 SUPPLY CRATE DROPPED! 📦</div>
+        <div id="bossWarning">⚠️ BOSS ROUND ⚠️</div>
+        
+        <div id="upgradeMenu">
+            <h2>🛠️ WEAPON UPGRADES 🛠️</h2>
+            <div style="margin-bottom: 15px; color: #ffff00;">Points: <span id="upgradePoints">0</span></div>
+            <button class="upgrade-btn" id="upgradeDamage">Damage (+25%) - 500 pts</button>
+            <button class="upgrade-btn" id="upgradeReload">Reload Speed (+20%) - 400 pts</button>
+            <button class="upgrade-btn" id="upgradeMag">Magazine Size (+5) - 300 pts</button>
+            <button class="upgrade-btn" id="upgradeFireRate">Fire Rate (+15%) - 450 pts</button>
+            <button class="upgrade-btn" id="closeUpgrade">Close [U]</button>
+        </div>
+        
+        <div id="gameOver">
+            <h1>GAME OVER</h1>
+            <p>You survived <span id="finalRound">0</span> rounds!</p>
+            <p>Total Points: <span id="finalPoints">0</span></p>
+            <p>Zombies Killed: <span id="finalKills">0</span></p>
+            <button id="restartBtn">PLAY AGAIN</button>
+        </div>
+        
+        <div id="controls">
+            WASD/Arrows: Move | Mouse: Aim | Click: Shoot<br>
+            R: Reload | U: Upgrades | E: Open Crate
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html>

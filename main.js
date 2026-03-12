@@ -111,7 +111,7 @@ let isShooting = false;
 
 // Axe system
 let axe = null;
-const AXE_DURATION = 500; // 0.5 seconds (was 1.5)
+const AXE_DURATION = 500; // 0.5 seconds
 const AXE_COOLDOWN = 3000; // 3 seconds between uses
 let lastAxeUse = 0;
 
@@ -129,14 +129,14 @@ let projectiles = [];
 // Zombies
 let zombies = [];
 const zombieTypes = {
-    normal: { health: 50, speed: 1.5, damage: 10, color: '#2d5016', points: 10, radius: 12 },
-    fast: { health: 30, speed: 3, damage: 8, color: '#8b0000', points: 15, radius: 10 },
-    tank: { health: 150, speed: 0.8, damage: 20, color: '#4a0080', points: 30, radius: 18 },
-    horse: { health: 100, speed: 2.5, damage: 15, color: '#654321', points: 40, radius: 20, isHorse: true },
-    ranged: { health: 40, speed: 1.2, damage: 12, color: '#2d2d2d', points: 20, radius: 11, ranged: true, projectileSpeed: 6 },
-    exploder: { health: 60, speed: 2.2, damage: 25, color: '#ff4400', points: 25, radius: 13, exploder: true, explosionRadius: 80 },
-    crawler: { health: 35, speed: 2, damage: 8, color: '#1a3300', points: 15, radius: 8, crawler: true },
-    armored: { health: 30, armor: 50, speed: 1, damage: 12, color: '#666', points: 35, radius: 14, armored: true }
+    normal: { health: 50, speed: 1.5, damage: 10, color: '#2d5016', points: 10, radius: 18, hitboxRadius: 22 },
+    fast: { health: 25, speed: 3, damage: 8, color: '#8b0000', points: 15, radius: 10, hitboxRadius: 12, oneTap: true },
+    tank: { health: 150, speed: 0.8, damage: 20, color: '#4a0080', points: 30, radius: 18, hitboxRadius: 22 },
+    horse: { health: 100, speed: 2.5, damage: 15, color: '#654321', points: 40, radius: 20, hitboxRadius: 24, isHorse: true, riderType: null },
+    ranged: { health: 40, speed: 1.2, damage: 12, color: '#2d2d2d', points: 20, radius: 11, hitboxRadius: 14, ranged: true, projectileSpeed: 6 },
+    exploder: { health: 60, speed: 2.2, damage: 25, color: '#ff4400', points: 25, radius: 13, hitboxRadius: 16, exploder: true, explosionRadius: 80 },
+    crawler: { health: 35, speed: 2, damage: 8, color: '#1a3300', points: 15, radius: 8, hitboxRadius: 10, crawler: true },
+    armored: { health: 30, armor: 50, speed: 1, damage: 12, color: '#666', points: 35, radius: 14, hitboxRadius: 18, armored: true, unarmoredColor: '#2d5016' }
 };
 
 // Bosses
@@ -148,6 +148,7 @@ const bossTypes = {
         damage: 30,
         color: '#4a0080',
         radius: 35,
+        hitboxRadius: 40,
         points: 200,
         isBoss: true
     },
@@ -158,6 +159,7 @@ const bossTypes = {
         damage: 25,
         color: '#8b0000',
         radius: 30,
+        hitboxRadius: 35,
         points: 250,
         isBoss: true,
         isHorse: true
@@ -169,6 +171,7 @@ const bossTypes = {
         damage: 20,
         color: '#2d5016',
         radius: 28,
+        hitboxRadius: 32,
         points: 300,
         isBoss: true,
         ranged: true,
@@ -251,10 +254,10 @@ canvas.addEventListener('mouseleave', () => {
 document.getElementById('restartBtn').addEventListener('click', restartGame);
 
 // Upgrade buttons
-document.getElementById('upgradeDamage').addEventListener('click', () => buyUpgrade('damage', 500, 0.25));
-document.getElementById('upgradeReload').addEventListener('click', () => buyUpgrade('reload', 400, 0.2));
-document.getElementById('upgradeMag').addEventListener('click', () => buyUpgrade('mag', 300, 5));
-document.getElementById('upgradeFireRate').addEventListener('click', () => buyUpgrade('fireRate', 450, 0.15));
+document.getElementById('upgradeDamage').addEventListener('click', () => buyUpgrade('damage', 100, 0.05));
+document.getElementById('upgradeReload').addEventListener('click', () => buyUpgrade('reload', 80, 0.1));
+document.getElementById('upgradeMag').addEventListener('click', () => buyUpgrade('mag', 60, 2));
+document.getElementById('upgradeFireRate').addEventListener('click', () => buyUpgrade('fireRate', 90, 0.05));
 document.getElementById('closeUpgrade').addEventListener('click', toggleUpgradeMenu);
 
 function getMaxMagazine() {
@@ -297,6 +300,12 @@ function toggleUpgradeMenu() {
 
 function updateUpgradeMenu() {
     document.getElementById('upgradePoints').textContent = game.points;
+    
+    // Update button text with current prices and values
+    document.getElementById('upgradeDamage').textContent = `Damage (+5%) - 100 pts (Current: ${Math.round((weaponUpgrades.damage - 1) * 100)}%)`;
+    document.getElementById('upgradeReload').textContent = `Reload Speed (+10%) - 80 pts`;
+    document.getElementById('upgradeMag').textContent = `Magazine Size (+2) - 60 pts (Current: +${weaponUpgrades.magazineBonus})`;
+    document.getElementById('upgradeFireRate').textContent = `Fire Rate (+5%) - 90 pts`;
 }
 
 function startReload() {
@@ -321,7 +330,7 @@ function useAxe() {
     axe = {
         startTime: now,
         angle: 0,
-        radius: 35, // Closer to player (was 60)
+        radius: 20, // Much closer to player (was 35)
         damage: weapons.pistol.damage / 3 * weaponUpgrades.damage,
         hitZombies: new Set()
     };
@@ -356,10 +365,10 @@ function updateAxe() {
         const dy = zombie.y - axeY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < zombie.radius + 15) { // 15 is axe hit radius
-            // Push zombie away
+        if (dist < zombie.radius + 20) { // 20 is axe hit radius
+            // Push zombie away strongly
             const pushAngle = Math.atan2(dy, dx);
-            const pushForce = 100;
+            const pushForce = 150;
             zombie.x += Math.cos(pushAngle) * pushForce;
             zombie.y += Math.sin(pushAngle) * pushForce;
             
@@ -380,36 +389,54 @@ function drawAxe() {
     
     ctx.save();
     ctx.translate(axeX, axeY);
-    ctx.rotate(axe.angle + Math.PI / 4); // Rotate to look like it's being swung
+    ctx.rotate(axe.angle + Math.PI / 4);
     
-    // Axe handle (shorter)
+    // Draw double-bladed battle axe like the reference image
+    
+    // Handle (wooden with gold accents)
     ctx.fillStyle = '#8b4513';
-    ctx.fillRect(-2, -15, 4, 25);
+    ctx.fillRect(-4, -20, 8, 40);
     
-    // Axe head (proper axe shape)
+    // Gold rings on handle
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(-5, -15, 10, 3);
+    ctx.fillRect(-5, 5, 10, 3);
+    ctx.fillRect(-5, 12, 10, 4);
+    
+    // Axe head center (metal connector)
+    ctx.fillStyle = '#silver';
+    ctx.fillRect(-6, -22, 12, 8);
+    
+    // Left blade (curved)
     ctx.fillStyle = '#c0c0c0';
     ctx.beginPath();
-    // Back of axe head
-    ctx.moveTo(-2, -15);
-    ctx.lineTo(2, -15);
-    // Top edge
-    ctx.lineTo(8, -12);
-    // Blade curve
-    ctx.quadraticCurveTo(12, -8, 10, 0);
-    // Bottom edge
-    ctx.lineTo(2, -5);
-    // Back bottom
-    ctx.lineTo(-2, -5);
+    ctx.moveTo(-6, -20);
+    ctx.quadraticCurveTo(-25, -25, -30, -10);
+    ctx.quadraticCurveTo(-25, -5, -6, -12);
     ctx.closePath();
     ctx.fill();
     
-    // Axe blade edge (sharp part)
-    ctx.fillStyle = '#e0e0e0';
+    // Right blade (curved)
     ctx.beginPath();
-    ctx.moveTo(8, -12);
-    ctx.quadraticCurveTo(12, -8, 10, 0);
-    ctx.lineTo(6, -3);
-    ctx.quadraticCurveTo(8, -8, 6, -10);
+    ctx.moveTo(6, -20);
+    ctx.quadraticCurveTo(25, -25, 30, -10);
+    ctx.quadraticCurveTo(25, -5, 6, -12);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Blade edges (brighter)
+    ctx.fillStyle = '#e8e8e8';
+    ctx.beginPath();
+    ctx.moveTo(-30, -10);
+    ctx.quadraticCurveTo(-25, -5, -6, -12);
+    ctx.quadraticCurveTo(-15, -15, -30, -10);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(30, -10);
+    ctx.quadraticCurveTo(25, -5, 6, -12);
+    ctx.quadraticCurveTo(15, -15, 30, -10);
     ctx.closePath();
     ctx.fill();
     
@@ -492,6 +519,11 @@ function spawnZombie(type, isBoss = false) {
         attackCooldown: 0,
         id: Math.random()
     };
+    
+    // Assign rider type for horses
+    if (zombie.isHorse && !isBoss) {
+        zombie.riderType = Math.random() < 0.5 ? 'normal' : 'ranged';
+    }
     
     zombies.push(zombie);
 }
@@ -605,25 +637,41 @@ function updateZombies() {
         const dy = player.y - zombie.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
+        // Horse with ranged rider stops at distance to shoot
+        let shouldMove = true;
+        if (zombie.isHorse && zombie.riderType === 'ranged' && dist < 250 && dist > 150) {
+            shouldMove = false;
+        }
+        
         // Movement
-        if (!zombie.ranged || dist > 200) {
-            const speed = zombie.speed * (1 + game.round * 0.05);
-            zombie.vx = (dx / dist) * speed;
-            zombie.vy = (dy / dist) * speed;
-            
-            if (zombie.crawler) {
-                zombie.vx *= 1.3;
-                zombie.vy *= 1.3;
+        if (shouldMove) {
+            if (!zombie.ranged || dist > 200) {
+                const speed = zombie.speed * (1 + game.round * 0.05);
+                zombie.vx = (dx / dist) * speed;
+                zombie.vy = (dy / dist) * speed;
+                
+                if (zombie.crawler) {
+                    zombie.vx *= 1.3;
+                    zombie.vy *= 1.3;
+                }
+                
+                zombie.x += zombie.vx;
+                zombie.y += zombie.vy;
+            } else if (zombie.ranged) {
+                // Ranged zombies maintain distance
+                if (dist < 150) {
+                    zombie.x -= (dx / dist) * zombie.speed * 0.5;
+                    zombie.y -= (dy / dist) * zombie.speed * 0.5;
+                }
             }
-            
-            zombie.x += zombie.vx;
-            zombie.y += zombie.vy;
-        } else if (zombie.ranged) {
-            // Ranged zombies maintain distance
-            if (dist < 150) {
-                zombie.x -= (dx / dist) * zombie.speed * 0.5;
-                zombie.y -= (dy / dist) * zombie.speed * 0.5;
-            }
+        }
+        
+        // Keep minimum distance from player to prevent invincibility glitch
+        const minDistance = player.radius + zombie.hitboxRadius + 5;
+        if (dist < minDistance) {
+            const pushAngle = Math.atan2(dy, dx);
+            zombie.x = player.x - Math.cos(pushAngle) * minDistance;
+            zombie.y = player.y - Math.sin(pushAngle) * minDistance;
         }
         
         // Bounds check
@@ -631,7 +679,7 @@ function updateZombies() {
         zombie.y = Math.max(zombie.radius, Math.min(canvas.height - zombie.radius, zombie.y));
         
         // Attack
-        if (dist < zombie.radius + player.radius && zombie.attackCooldown <= 0) {
+        if (dist < zombie.hitboxRadius + player.radius && zombie.attackCooldown <= 0) {
             if (!zombie.exploder) {
                 damagePlayer(zombie.damage);
                 zombie.attackCooldown = 60;
@@ -643,8 +691,9 @@ function updateZombies() {
             }
         }
         
-        // Ranged attack
-        if (zombie.ranged && dist < 400 && zombie.attackCooldown <= 0) {
+        // Ranged attack (including horse riders)
+        const canShoot = (zombie.ranged || (zombie.isHorse && zombie.riderType === 'ranged'));
+        if (canShoot && dist < 400 && zombie.attackCooldown <= 0) {
             const angle = Math.atan2(dy, dx);
             const accuracy = zombie.isBoss ? 0.9 : 0.7;
             
@@ -665,8 +714,8 @@ function updateZombies() {
         
         if (zombie.attackCooldown > 0) zombie.attackCooldown--;
         
-        // Horse rider melee
-        if (zombie.isHorse && dist < zombie.radius + player.radius + 10 && zombie.attackCooldown <= 0) {
+        // Horse rider melee (only if normal rider)
+        if (zombie.isHorse && zombie.riderType === 'normal' && dist < zombie.hitboxRadius + player.radius + 10 && zombie.attackCooldown <= 0) {
             damagePlayer(zombie.damage * 1.5);
             zombie.attackCooldown = 45;
         }
@@ -727,12 +776,21 @@ function damagePlayer(amount) {
 }
 
 function damageZombie(zombie, damage, index) {
+    // Handle one-tap for fast zombies
+    if (zombie.oneTap && damage >= 25) {
+        damage = zombie.health + zombie.armor; // Instakill
+    }
+    
     // Handle armor
     if (zombie.armor > 0) {
         zombie.armor -= damage;
         if (zombie.armor < 0) {
             zombie.health += zombie.armor;
             zombie.armor = 0;
+            // Armor broke - reveal regular zombie color
+            if (zombie.unarmoredColor) {
+                zombie.color = zombie.unarmoredColor;
+            }
         }
         return;
     }
@@ -775,14 +833,14 @@ function updateProjectiles() {
         }
         
         if (proj.isPlayer) {
-            // Check zombie hits
+            // Check zombie hits using hitboxRadius
             for (let j = zombies.length - 1; j >= 0; j--) {
                 const zombie = zombies[j];
                 const dx = proj.x - zombie.x;
                 const dy = proj.y - zombie.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < zombie.radius + 5) {
+                if (dist < zombie.hitboxRadius + 5) {
                     if (proj.explosive) {
                         createExplosion(proj.x, proj.y, proj.explosionRadius, proj.damage);
                     } else {
@@ -1004,12 +1062,31 @@ function draw() {
         }
         ctx.fill();
         
-        // Horse indicator
+        // Horse with rider
         if (zombie.isHorse) {
+            // Horse body
             ctx.fillStyle = '#3d2817';
             ctx.fillRect(-15, -5, 30, 10);
             ctx.fillRect(-10, -15, 5, 20);
             ctx.fillRect(5, -15, 5, 20);
+            
+            // Rider
+            if (zombie.riderType === 'normal') {
+                // Normal zombie rider (green)
+                ctx.fillStyle = '#2d5016';
+                ctx.beginPath();
+                ctx.arc(0, -20, 8, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (zombie.riderType === 'ranged') {
+                // Ranged zombie rider (dark gray)
+                ctx.fillStyle = '#2d2d2d';
+                ctx.beginPath();
+                ctx.arc(0, -20, 8, 0, Math.PI * 2);
+                ctx.fill();
+                // Little gun indicator
+                ctx.fillStyle = '#666';
+                ctx.fillRect(5, -22, 8, 4);
+            }
         }
         
         // Health bar for bosses and tanks

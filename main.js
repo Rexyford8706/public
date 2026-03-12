@@ -183,6 +183,9 @@ const bossTypes = {
 // Crate
 let crate = null;
 
+// Medkit
+let medkit = null;
+
 // Particles
 let particles = [];
 
@@ -213,6 +216,10 @@ document.addEventListener('keydown', (e) => {
     
     if (e.key.toLowerCase() === 'e' && crate && !game.upgradeMenuOpen) {
         openCrate();
+    }
+    
+    if (e.key.toLowerCase() === 'e' && medkit && !game.upgradeMenuOpen) {
+        openMedkit();
     }
     
     if (e.key.toLowerCase() === 'f' && !game.upgradeMenuOpen && game.running && !axe) {
@@ -330,7 +337,7 @@ function useAxe() {
     axe = {
         startTime: now,
         angle: 0,
-        radius: 20, // Much closer to player (was 35)
+        radius: 20, // Close to player
         damage: weapons.pistol.damage / 3 * weaponUpgrades.damage,
         hitZombies: new Set()
     };
@@ -350,7 +357,7 @@ function updateAxe() {
         return;
     }
     
-    // Spin the axe faster (2 full rotations in 0.5 seconds)
+    // Spin the axe (2 full rotations in 0.5 seconds)
     axe.angle = (elapsed / AXE_DURATION) * Math.PI * 4;
     
     // Calculate axe position
@@ -391,52 +398,30 @@ function drawAxe() {
     ctx.translate(axeX, axeY);
     ctx.rotate(axe.angle + Math.PI / 4);
     
-    // Draw double-bladed battle axe like the reference image
-    
-    // Handle (wooden with gold accents)
+    // Simple small axe design (the original one)
+    // Handle
     ctx.fillStyle = '#8b4513';
-    ctx.fillRect(-4, -20, 8, 40);
+    ctx.fillRect(-2, -12, 4, 20);
     
-    // Gold rings on handle
-    ctx.fillStyle = '#ffd700';
-    ctx.fillRect(-5, -15, 10, 3);
-    ctx.fillRect(-5, 5, 10, 3);
-    ctx.fillRect(-5, 12, 10, 4);
-    
-    // Axe head center (metal connector)
-    ctx.fillStyle = '#silver';
-    ctx.fillRect(-6, -22, 12, 8);
-    
-    // Left blade (curved)
+    // Axe head
     ctx.fillStyle = '#c0c0c0';
     ctx.beginPath();
-    ctx.moveTo(-6, -20);
-    ctx.quadraticCurveTo(-25, -25, -30, -10);
-    ctx.quadraticCurveTo(-25, -5, -6, -12);
+    ctx.moveTo(-2, -12);
+    ctx.lineTo(2, -12);
+    ctx.lineTo(6, -8);
+    ctx.quadraticCurveTo(8, -4, 6, 0);
+    ctx.lineTo(2, -4);
+    ctx.lineTo(-2, -4);
     ctx.closePath();
     ctx.fill();
     
-    // Right blade (curved)
+    // Blade edge
+    ctx.fillStyle = '#e0e0e0';
     ctx.beginPath();
-    ctx.moveTo(6, -20);
-    ctx.quadraticCurveTo(25, -25, 30, -10);
-    ctx.quadraticCurveTo(25, -5, 6, -12);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Blade edges (brighter)
-    ctx.fillStyle = '#e8e8e8';
-    ctx.beginPath();
-    ctx.moveTo(-30, -10);
-    ctx.quadraticCurveTo(-25, -5, -6, -12);
-    ctx.quadraticCurveTo(-15, -15, -30, -10);
-    ctx.closePath();
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.moveTo(30, -10);
-    ctx.quadraticCurveTo(25, -5, 6, -12);
-    ctx.quadraticCurveTo(15, -15, 30, -10);
+    ctx.moveTo(6, -8);
+    ctx.quadraticCurveTo(8, -4, 6, 0);
+    ctx.lineTo(4, -2);
+    ctx.quadraticCurveTo(6, -4, 4, -6);
     ctx.closePath();
     ctx.fill();
     
@@ -580,6 +565,15 @@ function dropCrate() {
     }, 3000);
 }
 
+function dropMedkit() {
+    medkit = {
+        x: 100 + Math.random() * (canvas.width - 200),
+        y: 100 + Math.random() * (canvas.height - 200),
+        radius: 20,
+        opened: false
+    };
+}
+
 function openCrate() {
     if (!crate || crate.opened) return;
     
@@ -624,6 +618,40 @@ function openCrate() {
         setTimeout(() => {
             crate = null;
             game.crateDropped = false;
+        }, 1000);
+        
+        updateUI();
+    }
+}
+
+function openMedkit() {
+    if (!medkit || medkit.opened) return;
+    
+    const dx = player.x - medkit.x;
+    const dy = player.y - medkit.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist < 50) {
+        medkit.opened = true;
+        
+        // Heal to max
+        player.health = player.maxHealth;
+        
+        // Visual effect (green cross particles)
+        for (let i = 0; i < 15; i++) {
+            particles.push({
+                x: medkit.x,
+                y: medkit.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 60,
+                color: '#00ff00',
+                size: 5
+            });
+        }
+        
+        setTimeout(() => {
+            medkit = null;
         }, 1000);
         
         updateUI();
@@ -950,6 +978,7 @@ function updateWave() {
         // Drop crate every 5 rounds
         if ((game.round - 1) % 5 === 0) {
             dropCrate();
+            dropMedkit(); // Drop medkit with crate
         }
         
         // Heal player slightly
@@ -985,6 +1014,31 @@ function draw() {
         ctx.moveTo(0, y);
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
+    }
+    
+    // Draw medkit
+    if (medkit) {
+        // White box with red cross
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(medkit.x - medkit.radius, medkit.y - medkit.radius, medkit.radius * 2, medkit.radius * 2);
+        
+        // Red cross
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(medkit.x - 4, medkit.y - 12, 8, 24);
+        ctx.fillRect(medkit.x - 12, medkit.y - 4, 24, 8);
+        
+        // Border
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(medkit.x - medkit.radius, medkit.y - medkit.radius, medkit.radius * 2, medkit.radius * 2);
+        
+        // Label
+        if (!medkit.opened) {
+            ctx.fillStyle = '#00ff00';
+            ctx.font = '12px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('MEDKIT [E]', medkit.x, medkit.y - 28);
+        }
     }
     
     // Draw crate
@@ -1180,6 +1234,7 @@ function restartGame() {
     game.crateDropped = false;
     isShooting = false;
     axe = null;
+    medkit = null;
     
     // Reset player
     player.x = canvas.width / 2;

@@ -658,7 +658,35 @@ function openMedkit() {
     }
 }
 
+function resolveZombieCollisions() {
+    // Separate zombies so they don't stack
+    for (let i = 0; i < zombies.length; i++) {
+        for (let j = i + 1; j < zombies.length; j++) {
+            const z1 = zombies[i];
+            const z2 = zombies[j];
+            
+            const dx = z2.x - z1.x;
+            const dy = z2.y - z1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = z1.radius + z2.radius + 2; // +2 for small buffer
+            
+            if (dist < minDist && dist > 0) {
+                // Push apart
+                const overlap = minDist - dist;
+                const pushX = (dx / dist) * overlap * 0.5;
+                const pushY = (dy / dist) * overlap * 0.5;
+                
+                z1.x -= pushX;
+                z1.y -= pushY;
+                z2.x += pushX;
+                z2.y += pushY;
+            }
+        }
+    }
+}
+
 function updateZombies() {
+    // First, move all zombies toward player
     zombies.forEach((zombie, index) => {
         // Calculate distance to player
         const dx = player.x - zombie.x;
@@ -694,30 +722,9 @@ function updateZombies() {
             }
         }
         
-        // Keep minimum distance from player to prevent invincibility glitch
-        const minDistance = player.radius + zombie.hitboxRadius + 5;
-        if (dist < minDistance) {
-            const pushAngle = Math.atan2(dy, dx);
-            zombie.x = player.x - Math.cos(pushAngle) * minDistance;
-            zombie.y = player.y - Math.sin(pushAngle) * minDistance;
-        }
-        
         // Bounds check
         zombie.x = Math.max(zombie.radius, Math.min(canvas.width - zombie.radius, zombie.x));
         zombie.y = Math.max(zombie.radius, Math.min(canvas.height - zombie.radius, zombie.y));
-        
-        // Attack
-        if (dist < zombie.hitboxRadius + player.radius && zombie.attackCooldown <= 0) {
-            if (!zombie.exploder) {
-                damagePlayer(zombie.damage);
-                zombie.attackCooldown = 60;
-            } else {
-                // Exploder explodes
-                createExplosion(zombie.x, zombie.y, zombie.explosionRadius, zombie.damage);
-                zombies.splice(index, 1);
-                return;
-            }
-        }
         
         // Ranged attack (including horse riders)
         const canShoot = (zombie.ranged || (zombie.isHorse && zombie.riderType === 'ranged'));
@@ -741,9 +748,31 @@ function updateZombies() {
         }
         
         if (zombie.attackCooldown > 0) zombie.attackCooldown--;
+    });
+    
+    // Resolve collisions between zombies
+    resolveZombieCollisions();
+    
+    // Check damage to player after collision resolution
+    zombies.forEach((zombie, index) => {
+        const dx = player.x - zombie.x;
+        const dy = player.y - zombie.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        // Attack player if touching - using hitboxRadius for more forgiving hits
+        if (dist < zombie.hitboxRadius + player.radius && zombie.attackCooldown <= 0) {
+            if (!zombie.exploder) {
+                damagePlayer(zombie.damage);
+                zombie.attackCooldown = 60;
+            } else {
+                // Exploder explodes
+                createExplosion(zombie.x, zombie.y, zombie.explosionRadius, zombie.damage);
+                zombies.splice(index, 1);
+            }
+        }
         
         // Horse rider melee (only if normal rider)
-        if (zombie.isHorse && zombie.riderType === 'normal' && dist < zombie.hitboxRadius + player.radius + 10 && zombie.attackCooldown <= 0) {
+        if (zombie.isHorse && zombie.riderType === 'normal' && dist < zombie.hitboxRadius + player.radius + 5 && zombie.attackCooldown <= 0) {
             damagePlayer(zombie.damage * 1.5);
             zombie.attackCooldown = 45;
         }

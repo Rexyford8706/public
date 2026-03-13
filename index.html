@@ -79,7 +79,8 @@
             padding: 20px;
             display: none;
             color: #fff;
-            min-width: 300px;
+            min-width: 350px;
+            z-index: 50;
         }
         
         #upgradeMenu h2 {
@@ -99,6 +100,7 @@
             cursor: pointer;
             font-family: inherit;
             transition: all 0.2s;
+            font-size: 12px;
         }
         
         .upgrade-btn:hover {
@@ -122,6 +124,7 @@
             display: none;
             color: #fff;
             text-align: center;
+            z-index: 100;
         }
         
         #gameOver h1 {
@@ -156,6 +159,7 @@
             text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
             display: none;
             animation: pulse 1s infinite;
+            pointer-events: none;
         }
         
         @keyframes pulse {
@@ -174,6 +178,7 @@
             text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
             display: none;
             animation: shake 0.5s infinite;
+            pointer-events: none;
         }
         
         @keyframes shake {
@@ -190,11 +195,157 @@
             font-size: 11px;
             text-align: right;
         }
+        
+        #zombieBookBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #333;
+            color: #fff;
+            border: 2px solid #666;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+        
+        #zombieBookBtn:hover {
+            background: #444;
+            border-color: #ff6600;
+        }
+        
+        #zombieBook {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 3px solid #444;
+            padding: 20px;
+            color: #fff;
+            width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            z-index: 100;
+            display: none;
+        }
+        
+        #zombieBook h2 {
+            color: #ff6600;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        #zombieBook h3 {
+            color: #ffff00;
+            border-bottom: 2px solid #444;
+            padding-bottom: 5px;
+            margin: 15px 0 10px 0;
+        }
+        
+        .zombie-entry {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .zombie-entry .zombie-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .zombie-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #444;
+        }
+        
+        .zombie-color.crawler {
+            transform: scaleY(0.6);
+        }
+        
+        .zombie-color.armored {
+            border: 3px solid #888;
+        }
+        
+        .zombie-name {
+            font-weight: bold;
+            color: #ff6600;
+        }
+        
+        .zombie-hp {
+            font-size: 11px;
+            color: #888;
+        }
+        
+        .zombie-desc {
+            font-size: 12px;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        
+        .zombie-warning {
+            color: #ff0000;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .boss-entry {
+            border: 2px solid #ff0000;
+            background: #1a0a0a;
+        }
+        
+        .boss-entry .zombie-color {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .boss-entry .zombie-name {
+            color: #ff0000;
+            font-size: 18px;
+        }
+        
+        .close-book {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .close-book:hover {
+            background: #444;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .grid-1 {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 15px;
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="1200" height="800"></canvas>
+        
+        <button id="zombieBookBtn">📖 Bestiary [B]</button>
         
         <div id="ui">
             <div>HEALTH</div>
@@ -219,10 +370,10 @@
         <div id="upgradeMenu">
             <h2>🛠️ WEAPON UPGRADES 🛠️</h2>
             <div style="margin-bottom: 15px; color: #ffff00;">Points: <span id="upgradePoints">0</span></div>
-            <button class="upgrade-btn" id="upgradeDamage">Damage (+25%) - 500 pts</button>
-            <button class="upgrade-btn" id="upgradeReload">Reload Speed (+20%) - 400 pts</button>
-            <button class="upgrade-btn" id="upgradeMag">Magazine Size (+5) - 300 pts</button>
-            <button class="upgrade-btn" id="upgradeFireRate">Fire Rate (+15%) - 450 pts</button>
+            <button class="upgrade-btn" id="upgradeDamage">Damage (+5%) - 100 pts</button>
+            <button class="upgrade-btn" id="upgradeReload">Reload Speed (+10%) - 80 pts</button>
+            <button class="upgrade-btn" id="upgradeMag">Magazine Size (+2) - 60 pts</button>
+            <button class="upgrade-btn" id="upgradeFireRate">Fire Rate (+5%) - 90 pts</button>
             <button class="upgrade-btn" id="closeUpgrade">Close [U]</button>
         </div>
         
@@ -235,15 +386,11 @@
         </div>
         
         <div id="controls">
-            WASD/Arrows: Move | Mouse: Aim | Click: Shoot<br>
-            R: Reload | U: Upgrades | E: Open Crate | E: Open Crate
+            WASD/Arrows: Move | Mouse: Aim | Click: Shoot (Hold for Assault Rifle)<br>
+            R: Reload | U: Upgrades | E: Open Crate/Medkit | F: Axe Spin | B: Bestiary
         </div>
     </div>
     
     <script src="main.js"></script>
 </body>
 </html>
-<button id="zombieBookBtn" style="position: absolute; top: 10px; right: 10px; background: #333; color: #fff; border: 2px solid #666; padding: 8px 15px; cursor: pointer; font-family: 'Courier New', monospace; z-index: 10;">📖 Bestiary [B]</button>
-<script>
-document.getElementById('zombieBookBtn').addEventListener('click', toggleZombieBook);
-</script>

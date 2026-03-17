@@ -86,7 +86,7 @@ const weapons = {
     },
     shotgun: {
         name: "Shotgun",
-        damage: 12.5, // Half pistol damage (25/2)
+        damage: 12.5,
         magazine: 7,
         maxMagazine: 7,
         fireRate: 600,
@@ -96,9 +96,9 @@ const weapons = {
         automatic: false,
         burst: 1,
         pellets: 12,
-        spread: 0.4, // Wide spread
+        spread: 0.4,
         pierce: true,
-        knockback: 7.5, // Half player radius (15/2)
+        knockback: 7.5,
         canShootWhileReloading: true,
         rarity: 4
     },
@@ -128,7 +128,7 @@ let reloadStart = 0;
 
 // Shooting state
 let isShooting = false;
-let isHolding = false; // Track if holding mouse/space
+let isHolding = false;
 
 // Axe system
 let axe = null;
@@ -294,6 +294,7 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 document.getElementById('restartBtn').addEventListener('click', restartGame);
+document.getElementById('zombieBookBtn').addEventListener('click', toggleZombieBook);
 
 // Upgrade buttons
 document.getElementById('upgradeDamage').addEventListener('click', () => buyUpgrade('damage', 100, 0.05));
@@ -358,66 +359,52 @@ function toggleZombieBook() {
 function createZombieBook() {
     const book = document.createElement('div');
     book.id = 'zombieBook';
-    book.style.cssText = `
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.95);
-        border: 3px solid #444;
-        padding: 20px;
-        color: #fff;
-        width: 700px;
-        max-height: 80vh;
-        overflow-y: auto;
-        font-family: 'Courier New', monospace;
-        z-index: 100;
-    `;
     
-    let html = '<h2 style="color: #ff6600; text-align: center; margin-bottom: 20px;">📖 ZOMBIE BESTIARY 📖</h2>';
-    html += '<button onclick="toggleZombieBook()" style="position: absolute; top: 10px; right: 10px; background: #333; color: #fff; border: 1px solid #666; padding: 5px 10px; cursor: pointer;">Close [B]</button>';
+    let html = '<h2>📖 ZOMBIE BESTIARY 📖</h2>';
+    html += '<button class="close-book" onclick="toggleZombieBook()">Close [B]</button>';
     
-    // Regular zombies
-    html += '<h3 style="color: #ffff00; border-bottom: 2px solid #444; padding-bottom: 5px;">Regular Zombies</h3>';
-    html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">';
+    html += '<h3>Regular Zombies</h3>';
+    html += '<div class="grid-2">';
     
     Object.entries(zombieTypes).forEach(([key, z]) => {
+        const armorClass = z.armored ? 'armored' : '';
+        const crawlerClass = z.crawler ? 'crawler' : '';
+        
         html += `
-            <div style="background: #1a1a1a; border: 1px solid #333; padding: 10px; border-radius: 5px;">
-                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <div style="width: 30px; height: 30px; background: ${z.color}; border-radius: 50%; margin-right: 10px; ${z.crawler ? 'transform: scaleY(0.6);' : ''} ${z.armored ? 'border: 3px solid #888;' : ''}"></div>
+            <div class="zombie-entry">
+                <div class="zombie-header">
+                    <div class="zombie-color ${armorClass} ${crawlerClass}" style="background: ${z.color};"></div>
                     <div>
-                        <div style="font-weight: bold; color: #ff6600;">${key.charAt(0).toUpperCase() + key.slice(1)} Zombie</div>
-                        <div style="font-size: 11px; color: #888;">HP: ${z.health}${z.armor ? '+' + z.armor + ' Armor' : ''}</div>
+                        <div class="zombie-name">${key.charAt(0).toUpperCase() + key.slice(1)} Zombie</div>
+                        <div class="zombie-hp">HP: ${z.health}${z.armor ? '+' + z.armor + ' Armor' : ''}</div>
                     </div>
                 </div>
-                <div style="font-size: 12px; color: #ccc; line-height: 1.4;">${z.desc}</div>
-                ${z.oneTap ? '<div style="color: #ff0000; font-size: 11px; margin-top: 5px;">⚠️ One-shot kill</div>' : ''}
-                ${z.ranged ? '<div style="color: #ff8800; font-size: 11px; margin-top: 5px;">⚠️ Ranged attack</div>' : ''}
-                ${z.exploder ? '<div style="color: #ff4400; font-size: 11px; margin-top: 5px;">⚠️ Explodes on contact</div>' : ''}
+                <div class="zombie-desc">${z.desc}</div>
+                ${z.oneTap ? '<div class="zombie-warning">⚠️ One-shot kill</div>' : ''}
+                ${z.ranged ? '<div class="zombie-warning">⚠️ Ranged attack</div>' : ''}
+                ${z.exploder ? '<div class="zombie-warning">⚠️ Explodes on contact</div>' : ''}
             </div>
         `;
     });
     
     html += '</div>';
     
-    // Bosses
-    html += '<h3 style="color: #ff0000; border-bottom: 2px solid #444; padding-bottom: 5px;">Boss Zombies</h3>';
-    html += '<div style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 15px;">';
+    html += '<h3>Boss Zombies</h3>';
+    html += '<div class="grid-1">';
     
     Object.entries(bossTypes).forEach(([key, z]) => {
         html += `
-            <div style="background: #1a1a1a; border: 2px solid #ff0000; padding: 15px; border-radius: 5px;">
-                <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <div style="width: 50px; height: 50px; background: ${z.color}; border-radius: 50%; margin-right: 15px;"></div>
+            <div class="zombie-entry boss-entry">
+                <div class="zombie-header">
+                    <div class="zombie-color" style="background: ${z.color};"></div>
                     <div>
-                        <div style="font-weight: bold; color: #ff0000; font-size: 18px;">${z.name}</div>
-                        <div style="font-size: 12px; color: #ff6600;">HP: ${z.health} | Points: ${z.points}</div>
+                        <div class="zombie-name">${z.name}</div>
+                        <div class="zombie-hp">HP: ${z.health} | Points: ${z.points}</div>
                     </div>
                 </div>
-                <div style="font-size: 13px; color: #ccc; line-height: 1.5;">${z.desc}</div>
-                ${z.ranged ? '<div style="color: #ff8800; font-size: 12px; margin-top: 8px;">⚠️ Rapid ranged attacks</div>' : ''}
-                ${z.isHorse ? '<div style="color: #ff0000; font-size: 12px; margin-top: 8px;">⚠️ Extremely fast movement</div>' : ''}
+                <div class="zombie-desc">${z.desc}</div>
+                ${z.ranged ? '<div class="zombie-warning">⚠️ Rapid ranged attacks</div>' : ''}
+                ${z.isHorse ? '<div class="zombie-warning">⚠️ Extremely fast movement</div>' : ''}
             </div>
         `;
     });
@@ -510,6 +497,42 @@ function updateAxe() {
     });
 }
 
+function drawAxe() {
+    if (!axe) return;
+    
+    const axeX = player.x + Math.cos(axe.angle) * axe.radius;
+    const axeY = player.y + Math.sin(axe.angle) * axe.radius;
+    
+    ctx.save();
+    ctx.translate(axeX, axeY);
+    ctx.rotate(axe.angle + Math.PI / 4);
+    
+    ctx.fillStyle = '#8b4513';
+    ctx.fillRect(-2, -12, 4, 20);
+    
+    ctx.fillStyle = '#c0c0c0';
+    ctx.beginPath();
+    ctx.moveTo(-2, -12);
+    ctx.lineTo(2, -12);
+    ctx.lineTo(6, -8);
+    ctx.quadraticCurveTo(8, -4, 6, 0);
+    ctx.lineTo(2, -4);
+    ctx.lineTo(-2, -4);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.fillStyle = '#e0e0e0';
+    ctx.beginPath();
+    ctx.moveTo(6, -8);
+    ctx.quadraticCurveTo(8, -4, 6, 0);
+    ctx.lineTo(4, -2);
+    ctx.quadraticCurveTo(6, -4, 4, -6);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+}
+
 function shoot() {
     if (game.upgradeMenuOpen || game.zombieBookOpen || !game.running || axe) return;
     
@@ -518,7 +541,6 @@ function shoot() {
     
     if (now - lastShot < fireRate) return;
     
-    // Shotgun can shoot while reloading (cancels reload)
     if (reloading && currentWeapon.canShootWhileReloading) {
         cancelReload();
     } else if (reloading) {
@@ -532,17 +554,14 @@ function shoot() {
     
     lastShot = now;
     
-    // Shotgun knockback
     if (currentWeapon.knockback) {
         player.x -= Math.cos(player.angle) * currentWeapon.knockback;
         player.y -= Math.sin(player.angle) * currentWeapon.knockback;
         
-        // Keep in bounds
         player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
         player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
     }
     
-    // Create pellets for shotgun, or single projectile
     const pelletCount = currentWeapon.pellets || 1;
     
     for (let p = 0; p < pelletCount; p++) {
@@ -577,7 +596,6 @@ function shoot() {
 }
 
 function updateShooting() {
-    // Only auto-fire for assault rifle while holding
     if (currentWeapon.automatic && isHolding && !axe && !reloading && !game.upgradeMenuOpen && !game.zombieBookOpen && game.running) {
         const now = Date.now();
         const fireRate = currentWeapon.fireRate * weaponUpgrades.fireRate;
@@ -586,10 +604,6 @@ function updateShooting() {
             shoot();
         }
     }
-}
-
-function createProjectile() {
-    // Deprecated - use shoot() instead
 }
 
 function spawnZombie(type, isBoss = false) {
@@ -787,7 +801,6 @@ function resolveZombieCollisions() {
 }
 
 function updateZombies() {
-    // Move all zombies toward player
     zombies.forEach((zombie) => {
         const dx = player.x - zombie.x;
         const dy = player.y - zombie.y;
@@ -819,11 +832,9 @@ function updateZombies() {
             }
         }
         
-        // Bounds check
         zombie.x = Math.max(zombie.radius, Math.min(canvas.width - zombie.radius, zombie.x));
         zombie.y = Math.max(zombie.radius, Math.min(canvas.height - zombie.radius, zombie.y));
         
-        // Ranged attacks
         const canShoot = (zombie.ranged || (zombie.isHorse && zombie.riderType === 'ranged'));
         if (canShoot && dist < 400 && zombie.attackCooldown <= 0) {
             const angle = Math.atan2(dy, dx);
@@ -847,16 +858,13 @@ function updateZombies() {
         if (zombie.attackCooldown > 0) zombie.attackCooldown--;
     });
     
-    // Resolve collisions between zombies
     resolveZombieCollisions();
     
-    // Check damage to player - zombies can touch but not overlap
     zombies.forEach((zombie, index) => {
         const dx = player.x - zombie.x;
         const dy = player.y - zombie.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        // Push zombie to edge of player if overlapping
         const touchDistance = zombie.radius + player.radius;
         if (dist < touchDistance && dist > 0) {
             const pushFactor = touchDistance / dist;
@@ -864,8 +872,7 @@ function updateZombies() {
             zombie.y = player.y - dy * pushFactor;
         }
         
-        // Damage if touching (at edge of player)
-        if (dist <= touchDistance + 2 && zombie.attackCooldown <= 0) { // +2 tolerance
+        if (dist <= touchDistance + 2 && zombie.attackCooldown <= 0) {
             if (!zombie.exploder) {
                 damagePlayer(zombie.damage);
                 zombie.attackCooldown = 60;
@@ -875,7 +882,6 @@ function updateZombies() {
             }
         }
         
-        // Horse rider melee
         if (zombie.isHorse && zombie.riderType === 'normal' && dist <= touchDistance + 5 && zombie.attackCooldown <= 0) {
             damagePlayer(zombie.damage * 1.5);
             zombie.attackCooldown = 45;
@@ -896,14 +902,6 @@ function createExplosion(x, y, radius, damage) {
             damageZombie(zombie, dmg, zombies.indexOf(zombie));
         }
     });
-    
-    // RPG doesn't damage player
-    const dx = player.x - x;
-    const dy = player.y - y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Only damage player if not RPG (or if we add other explosive weapons that do self-damage)
-    // Currently no self-damage from any explosion
     
     for (let i = 0; i < 30; i++) {
         const angle = (Math.PI * 2 * i) / 30;
@@ -988,7 +986,6 @@ function updateProjectiles() {
             for (let j = zombies.length - 1; j >= 0; j--) {
                 const zombie = zombies[j];
                 
-                // Skip if already pierced this zombie
                 if (proj.pierce && proj.piercedZombies && proj.piercedZombies.has(zombie.id)) {
                     continue;
                 }
@@ -1005,10 +1002,8 @@ function updateProjectiles() {
                     } else {
                         damageZombie(zombie, proj.damage, j);
                         
-                        // Mark as pierced
                         if (proj.pierce) {
                             proj.piercedZombies.add(zombie.id);
-                            // Continue to next zombie (don't remove projectile)
                         } else {
                             projectiles.splice(i, 1);
                             break;
@@ -1017,7 +1012,6 @@ function updateProjectiles() {
                 }
             }
             
-            // Remove pierced projectile if it's traveled too far or hit enough zombies
             if (proj.pierce && proj.piercedZombies && proj.piercedZombies.size >= 5) {
                 const idx = projectiles.indexOf(proj);
                 if (idx > -1) projectiles.splice(idx, 1);
